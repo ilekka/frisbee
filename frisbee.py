@@ -6,7 +6,7 @@ The aerodynamical properties of the disc are determined by the drag and lift coe
 For the drag and lift coefficients, we imitate the values found by wind tunnel measurements in
 https://www.escholar.manchester.ac.uk/api/datastream?publicationPid=uk-ac-man-scw:132975&datastreamId=FULL-TEXT.PDF
 
-The function which determines how the center of pressure varies with the angle of attack is simply guessed in such a way that the results of the simulation have a reasonably close resemblance to the flight of an actual distance driver.
+The function which determines how the center of pressure varies with the angle of attack is simply guessed in such a way that the results of the simulation have a reasonably close resemblance to the flight of an actual golf disc.
 '''
 
 import numpy as np
@@ -33,9 +33,9 @@ wind = [0, 0, 0] # Wind in the coordinate system fixed to Earth
 disc = 3 # 1-5 (1 = most overstable, 5 = most understable)
 
 # What to plot? (1 = yes, any other number = no)
-plot2d = 0 # 2D plots of the trajectory and the angles of the disc
-plot3d = 0 # 3D animation of the trajectory (created using FuncAnimation)
-plot3d_disc = 1 # 3D animation of the trajectory and the disc (created from png images). Quite slow, which seems like a fair punishment for not understanding how to use FuncAnimation properly.
+plot2d = 1 # 2D plots of the trajectory and the angles of the disc
+plot3d = 1 # 3D animation of the trajectory (created using FuncAnimation)
+plot3d_disc = 0 # 3D animation of the trajectory and the disc (created from png images). Quite slow, which seems like a fair punishment for not understanding how to use FuncAnimation properly.
 
 filename = 'frisbee_anim.mp4' # Filename to save the first animation
 filename_2 = 'frisbee_anim2.mp4' # Filename to save the second animation
@@ -65,7 +65,7 @@ def eom(t, f, w_0, wi, disc):
     x, y, z, v1, v2, v3, a, b, da, db = f
     # w_0 = initial angular velocity around the disc's axis of symmetry
     # wi = wind (in the coordinate system fixed to Earth)
-    # disc = 1, 2, 3, 4 or 5, with 5 being maybe the closest to a reasonable distance driver
+    # disc = 1, 2, 3, 4 or 5, with 3 being maybe the most realistic approximation of a reasonable distance driver
 
     # Parameters and constants
     m = 0.175 # Mass of the disc
@@ -313,7 +313,7 @@ if plot3d_disc == 1:
     s = sol.sol(t)
 
     # https://stackoverflow.com/questions/13685386/matplotlib-equal-unit-length-with-equal-aspect-ratio-z-axis-is-not-equal-to
-    # Sets the axes of the 3D plot so that the frisbee looks like a square and not like an ellipse
+    # Sets the axes of the 3D plot so that the frisbee looks like a circle and not like an ellipse
     def set_axes_equal(ax):
         '''Make axes of 3D plot have equal scale so that spheres appear as spheres,
         cubes as cubes, etc..  This is one possible solution to Matplotlib's
