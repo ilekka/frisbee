@@ -1,9 +1,18 @@
 '''
-This code tries to determine the parameters characterizing the aerodynamical properties of the frisbee in the model on which the calculation of the frisbee's trajectory is based. The code attempts to find a set of parameters which reproduces as closely as possible a given set of input trajectories (corresponding to different initial conditions).
+This code tries to determine the parameters characterizing the aerodynamical properties
+of the frisbee in the model on which the calculation of the frisbee's trajectory is based.
+The code attempts to find a set of parameters which reproduces as closely as possible
+a given set of input trajectories (corresponding to different initial conditions).
 
-Instead of looking at the whole trajectory, each trajectory is described by a few 'features', such as the x- and y-coordinates of the landing point, the time of flight, etc. These features should ideally be things that can be measured to a reasonable accuracy from an actual throw of the frisbee, using e.g. a video camera and a rangefinder.
+Instead of looking at the whole trajectory, each trajectory is described by a few 'features',
+such as the x- and y-coordinates of the landing point, the time of flight, etc. These features
+should ideally be things that can be measured to a reasonable accuracy from an actual throw
+of the frisbee, using e.g. a video camera and a rangefinder.
 
-The code uses scipy.optimize.minimize to look for the set of parameters that minimizes the value of a certain 'cost function'. The cost function looks at the features of the trajectories, and measures how badly the trajectories resulting from a particular choice of the aerodynamical parameters differ from the corresponding input trajectories.
+The code uses scipy.optimize.minimize to look for the set of parameters that minimizes the
+value of a certain 'cost function'. The cost function looks at the features of the trajectories,
+and measures how badly the trajectories resulting from a particular choice of the aerodynamical
+parameters differ from the corresponding input trajectories.
 '''
 
 import numpy as np
@@ -205,7 +214,7 @@ def score(coeff, init, goal):
 # Optimize all the parameters (all_parameters = 1)
 # or only the center of pressure parameters (all_parameters = 0).
 # In the latter case, set the drag and lift parameters in 'eom'
-# (on line 80 at the time of writing this comment).
+# (on line 89 at the time of writing this comment).
 all_parameters = 1
 
 # Initial conditions:
