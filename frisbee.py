@@ -1,12 +1,15 @@
-'''
+''' 
 The code calculates and plots the trajectory of a disc golf frisbee for given initial conditions.
 
-The aerodynamical properties of the disc are determined by the drag and lift coefficients, and by the dependence of the center of pressure on the angle of attack.
+The aerodynamical properties of the disc are determined by the drag and lift coefficients, and by
+the dependence of the center of pressure on the angle of attack.
 
 For the drag and lift coefficients, we imitate the values found by wind tunnel measurements in
 https://www.escholar.manchester.ac.uk/api/datastream?publicationPid=uk-ac-man-scw:132975&datastreamId=FULL-TEXT.PDF
 
-The function which determines how the center of pressure varies with the angle of attack is simply guessed in such a way that the results of the simulation have a reasonably close resemblance to the flight of an actual golf disc.
+The function which determines how the center of pressure varies with the angle of attack is simply
+guessed in such a way that the results of the simulation have a reasonably close resemblance to the
+flight of an actual golf disc.
 '''
 
 import numpy as np
@@ -19,26 +22,28 @@ from subprocess import call
 import time
 
 # Give the initial conditions:
-x_0 = 0 # Coordinates of the starting point
+x_0 = 0         # Coordinates of the starting point
 y_0 = 0
 z_0 = 1 
-v_0 = 28 # Magnitude of initial velocity. (The initial velocity vector lies in the yz-plane.)
-phi = 10*np.pi/180 # Angle of initial velocity relative to the horizontal plane
-w_0 = -34*np.pi # Initial angular velocity around the disc's symmetry axis
-a_0 = 6*np.pi/180 # The disc is rotated by the angle alpha around the x-axis...
-b_0 = 0*np.pi/180 # ...and then by the angle beta around the y-axis attached to the disc.
-da_0 = 0*np.pi # Off-axis components of angular velocity
+v_0 = 28        # Magnitude of initial velocity. (The initial velocity vector lies in the yz-plane.)
+phi = 10*np.pi/180  # Angle of initial velocity relative to the horizontal plane
+w_0 = -34*np.pi     # Initial angular velocity around the disc's symmetry axis
+a_0 = 6*np.pi/180   # The disc is rotated by the angle alpha around the x-axis...
+b_0 = 6*np.pi/180   # ...and then by the angle beta around the y-axis attached to the disc.
+da_0 = 0*np.pi      # Off-axis components of angular velocity
 db_0 = 0*np.pi
-wind = [0, 0, 0] # Wind in the coordinate system fixed to Earth
-disc = 3 # 1-5 (1 = most overstable, 5 = most understable)
+wind = [0, 0, 0]    # Wind in the coordinate system fixed to Earth
+disc = 3            # 1-5 (1 = most overstable, 5 = most understable)
 
 # What to plot? (1 = yes, any other number = no)
-plot2d = 1 # 2D plots of the trajectory and the angles of the disc
-plot3d = 1 # 3D animation of the trajectory (created using FuncAnimation)
-plot3d_disc = 0 # 3D animation of the trajectory and the disc (created from png images). Quite slow, which seems like a fair punishment for not understanding how to use FuncAnimation properly.
+plot2d = 1      # 2D plots of the trajectory and the angles of the disc
+plot3d = 1      # 3D animation of the trajectory (created using FuncAnimation)
+plot3d_disc = 1 # 3D animation of the trajectory and the disc (created from png images). 
+                # Quite slow, which seems like a fair punishment for not understanding how 
+                # to use FuncAnimation properly.
 
-filename = 'frisbee_anim.mp4' # Filename to save the first animation
-filename_2 = 'frisbee_anim2.mp4' # Filename to save the second animation
+filename = 'anim1.mp4'      # Filename to save the first animation
+filename_2 = 'anim2.mp4'    # Filename to save the second animation
 
 # Directory in which frisbee.py lives. Animations will be saved in this directory.
 dir = '/home/ilkka/Python/frisbee/github/' 
@@ -61,36 +66,36 @@ if not hasattr(Axis, "_get_coord_info_old"):
 def norm3(v):
     return np.sqrt(v[0]**2 + v[1]**2 + v[2]**2)
 
-def eom(t, f, w_0, wi, disc):
+def eom(t, f , w_0, wi, disc):
     x, y, z, v1, v2, v3, a, b, da, db = f
     # w_0 = initial angular velocity around the disc's axis of symmetry
     # wi = wind (in the coordinate system fixed to Earth)
     # disc = 1, 2, 3, 4 or 5, with 3 being maybe the most realistic approximation of a reasonable distance driver
 
     # Parameters and constants
-    m = 0.175 # Mass of the disc
-    I1 = 0.0007 # Moment of inertia about an axis in the disc's plane
-    I3 = 0.0014 # Moment of inertia about the symmetry axis
-    Ar = np.pi*0.1055**2 # Area of the disc
-    rho = 1.2 # Density of air
-    g = 9.81 # Gravitational acceleration
+    m = 0.175               # Mass of the disc
+    I1 = 0.0007             # Moment of inertia about an axis in the disc's plane
+    I3 = 0.0014             # Moment of inertia about the symmetry axis
+    Ar = np.pi*0.1055**2    # Area of the disc
+    rho = 1.2               # Density of air
+    g = 9.81                # Gravitational acceleration
    
     # Transform the components of wind into the rotating coordinate system
-    w = [0, 0, 0]
+    w = np.zeros(3)
     w[0] = np.cos(b)*wi[0] + np.sin(a)*np.sin(b)*wi[1] - np.cos(a)*np.sin(b)*wi[2]
     w[1] = np.cos(a)*wi[1] + np.sin(a)*wi[2]
     w[2] = np.sin(b)*wi[0] - np.sin(a)*np.cos(b)*wi[1] + np.cos(a)*np.cos(b)*wi[2]    
-    
+
     # Angle of attack
-    v = [v1, v2, v3]
-    delta = -np.arcsin((v3 - wi[2])/norm3(np.array(v) - np.array(w)))
+    v = np.array([v1, v2, v3])
+    delta = -np.arcsin((v[2] - w[2])/norm3(v - w))
     
     # Aerodynamical coefficients
     CD_0 = 0.05
     CL_0 = 0.15
-    delta_0 = -3.5*np.pi/180 # Angle of attack at which drag is minimized
+    delta_0 = -3.5*np.pi/180    # Angle of attack at which drag is minimized
     k = 1.5
-    l = -CL_0/delta_0 # Chosen so that C_L = 0 when delta = delta_0
+    l = -CL_0/delta_0           # Chosen so that C_L = 0 when delta = delta_0
 
     CD = CD_0 + k*(delta - delta_0)**2
     CL = CL_0 + l*delta 
@@ -130,18 +135,30 @@ def eom(t, f, w_0, wi, disc):
         delta_1 = 2*np.pi/180
         delta_2 = 5*np.pi/180
     
-    R = h_1*(delta-delta_1) + np.heaviside(delta-delta_2, 0.5)*h_2*(delta-delta_2)**2
+    # Step function:
+    def theta(x):
+        if x > 0:
+            return 1
+        else:
+            return 0
+
+    R = h_1*(delta - delta_1) + theta(delta - delta_2)*h_2*(delta - delta_2)**2
 
     # Components of force in the frisbee's coordinate system
-    F1 = -0.5*rho*Ar*norm3(np.array(v) - np.array(wi))*(v[0]-wi[0])*(CD + CL*(v[2]-wi[2])/np.sqrt((v[0]-wi[0])**2 + (v[1]-wi[1])**2)) + m*g*np.cos(a)*np.sin(b)
-    F2 = -0.5*rho*Ar*norm3(np.array(v) - np.array(wi))*(v[1]-wi[1])*(CD + CL*(v[2]-wi[2])/np.sqrt((v[0]-wi[0])**2 + (v[1]-wi[1])**2)) - m*g*np.sin(a)
-    F3 = -0.5*rho*Ar*norm3(np.array(v) - np.array(wi))*(CD*(v[2]-wi[2]) - CL*np.sqrt((v[0]-wi[0])**2 + (v[1]-wi[1])**2)) - m*g*np.cos(a)*np.cos(b)
+    F1 = -0.5*rho*Ar*norm3(v - w)*(v[0] - w[0])*(CD + CL*(v[2] - w[2])
+            /np.sqrt((v[0] - w[0])**2 + (v[1] - w[1])**2)) + m*g*np.cos(a)*np.sin(b)
+    F2 = -0.5*rho*Ar*norm3(v - w)*(v[1] - w[1])*(CD + CL*(v[2] - w[2])
+            /np.sqrt((v[0] - w[0])**2 + (v[1] - w[1])**2)) - m*g*np.sin(a)
+    F3 = -0.5*rho*Ar*norm3(v - w)*(CD*(v[2] - w[2]) 
+            - CL*np.sqrt((v[0] - w[0])**2 + (v[1] - w[1])**2)) - m*g*np.cos(a)*np.cos(b)
 
     # Components of torque in the frisbee's coordinate system
     # Includes a damping term added by hand and controlled by the parameter q
     q = 0.0002
-    T1 = 0.5*rho*Ar*R*norm3(np.array(v) - np.array(wi))*(v[1]-wi[1])*(CL - CD*(v[2]-wi[2])/np.sqrt((v[0]-wi[0])**2 + (v[1]-wi[1])**2)) - 0.5*rho*Ar*norm3(np.array(v) - np.array(wi))**2*q*da
-    T2 = -0.5*rho*Ar*R*norm3(np.array(v) - np.array(wi))*(v[0]-wi[0])*(CL - CD*(v[2]-wi[2])/np.sqrt((v[0]-wi[0])**2 + (v[1]-wi[1])**2)) - 0.5*rho*Ar*norm3(np.array(v) - np.array(wi))**2*q*db
+    T1 = 0.5*rho*Ar*R*norm3(v - w)*(v[1] - w[1])*(CL - CD*(v[2] - w[2])
+            /np.sqrt((v[0] - w[0])**2 + (v[1] - w[1])**2)) - 0.5*rho*Ar*norm3(v - w)**2*q*da
+    T2 = -0.5*rho*Ar*R*norm3(v - w)*(v[0] - w[0])*(CL - CD*(v[2] - w[2])
+            /np.sqrt((v[0] - w[0])**2 + (v[1] - w[1])**2)) - 0.5*rho*Ar*norm3(v - w)**2*q*db
 
     # Equations of motion, in the form [x. y. z. v1. v2. v3. a. b. a.. b..]
     return [np.cos(b)*v1 + np.sin(b)*v3,
@@ -153,7 +170,7 @@ def eom(t, f, w_0, wi, disc):
             da,
             db,
             (T1 - I3*w_0*db)/I1/np.cos(b) + 2*da*db*np.tan(b),
-             (T2 + I3*w_0*da*np.cos(b))/I1 - da**2*np.sin(b)*np.cos(b)]
+            (T2 + I3*w_0*da*np.cos(b))/I1 - da**2*np.sin(b)*np.cos(b)]
 
 # Condition to stop integrating when the frisbee has reached the ground
 def landed(t, f, w_0, wi, disc):
@@ -167,8 +184,9 @@ def frisbee_solve(x_0, y_0, z_0, v0_x, v0_y, v0_z, w_0, a_0, b_0, da_0, db_0, wi
     v0_2 = np.cos(a_0)*v0_y + np.sin(a_0)*v0_z
     v0_3 = np.sin(b_0)*v0_x - np.sin(a_0)*np.cos(b_0)*v0_y + np.cos(a_0)*np.cos(b_0)*v0_z
 
-    # "method" can also be 'RK45' or 'DOP853'. As far as accuracy goes, it apparently makes no difference which one is chosen, but 'RK23' seems the fastest by a nose.
-    sol = solve_ivp(eom, [0, 100], [x_0, y_0, z_0, v0_1, v0_2, v0_3, a_0, b_0, da_0, db_0], args = (w_0, wind, disc), method = 'RK23', dense_output=True, events=landed) # , max_step=10**-3)
+    # "method" can also be 'RK45' or 'DOP853'. As far as accuracy goes, it apparently makes 
+    # no difference which one is chosen, but 'RK23' seems the fastest by a nose.
+    sol = solve_ivp(eom, [0, 100], [x_0, y_0, z_0, v0_1, v0_2, v0_3, a_0, b_0, da_0, db_0], args = (w_0, wind, disc), method = 'RK23', dense_output = True, events = landed) # , max_step = 10**-3)
 
     # Time of flight, x- and y-coordinates of the landing point, and length of the throw
     t_F = sol.t_events[0][0]
@@ -231,14 +249,14 @@ if plot2d == 1:
     # Extract the angle of attack from the solution
     d = np.zeros(N)
     for k in range(N):
-        v = [s[3,k], s[4,k], s[5,k]]
+        v = np.array([s[3,k], s[4,k], s[5,k]])
         a = s[6,k]
         b = s[7,k]
-        w = [0, 0, 0]
+        w = np.zeros(3)
         w[0] = np.cos(b)*wind[0] + np.sin(a)*np.sin(b)*wind[1] - np.cos(a)*np.sin(b)*wind[2]
         w[1] = np.cos(a)*wind[1] + np.sin(a)*wind[2]
         w[2] = np.sin(b)*wind[0] - np.sin(a)*np.cos(b)*wind[1] + np.cos(a)*np.cos(b)*wind[2]    
-        d[k] = -np.arcsin((v[2] - wind[2])/norm3(np.array(v) - np.array(w)))
+        d[k] = -np.arcsin((v[2] - w[2])/norm3(v - w))
 
     plt.figure(5)
     plt.plot(t, 180/np.pi*d)
@@ -264,6 +282,7 @@ if plot3d == 1:
     x_L = max(20*np.ceil(x_F/20), np.ceil(20*np.ceil(y_L/60)))
     z_L = max(20, 10*np.ceil(max(s[2,:])/10))
 
+    # Create a "data object" which contains the curves to be plotted
     data = [np.zeros((3,N)) for i in range(3)]
     for i in range(N):
         # The complete trajectory:
