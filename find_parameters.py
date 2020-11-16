@@ -1,18 +1,18 @@
 '''
-This code tries to determine the parameters characterizing the aerodynamical properties
-of the frisbee in the model on which the calculation of the frisbee's trajectory is based.
-The code attempts to find a set of parameters which reproduces as closely as possible
-a given set of input trajectories (corresponding to different initial conditions).
+This code tries to determine the parameters characterizing the aerodynamical properties of the
+frisbee in the model on which the calculation of the frisbee's trajectory is based. The code
+attempts to find a set of parameters which reproduces as closely as possible a given set of input
+trajectories (corresponding to different initial conditions).
 
-Instead of looking at the whole trajectory, each trajectory is described by a few 'features',
-such as the x- and y-coordinates of the landing point, the time of flight, etc. These features
-should ideally be things that can be measured to a reasonable accuracy from an actual throw
-of the frisbee, using e.g. a video camera and a rangefinder.
+Instead of looking at the whole trajectory, each trajectory is described by a few 'features', such
+as the x- and y-coordinates of the landing point, the time of flight, etc. These features should
+ideally be things that can be measured to a reasonable accuracy from an actual throw of the frisbee,
+using e.g. a video camera and a rangefinder.
 
-The code uses scipy.optimize.minimize to look for the set of parameters that minimizes the
-value of a certain 'cost function'. The cost function looks at the features of the trajectories,
-and measures how badly the trajectories resulting from a particular choice of the aerodynamical
-parameters differ from the corresponding input trajectories.
+The code uses scipy.optimize.minimize to look for the set of parameters that minimizes the value of
+a certain 'cost function'. The cost function looks at the features of the trajectories, and measures
+how badly the trajectories resulting from a particular choice of the aerodynamical parameters differ
+from the corresponding input trajectories.
 '''
 
 import numpy as np
@@ -32,10 +32,13 @@ def np_array_ol(x):
         return impl
 ''' End of hack '''
 
-# Applying jit to the function 'eom' reduces the time required to calculate 
-# a typical trajectory from about 0.85 s to about 0.12 s.
-# jit also has the option 'fastmath = True', but using it here doesn't seem 
-# to make any math happen any faster.
+'''
+Applying jit to the function 'eom' reduces the time required to calculate a typical trajectory from 
+about 0.85 s to about 0.12 s.
+
+jit also has the option 'fastmath = True', but using it here doesn't seem to make any math happen
+any faster.
+'''
 
 @jit(nopython = True)
 def eom(t, f, w_0, wi, coeff):
@@ -53,14 +56,14 @@ def eom(t, f, w_0, wi, coeff):
     g = 9.81                # Gravitational acceleration
    
     # Transform the components of wind into the rotating coordinate system
-    w = np.array([0, 0, 0])
+    w = np.zeros(3)
     w[0] = np.cos(b)*wi[0] + np.sin(a)*np.sin(b)*wi[1] - np.cos(a)*np.sin(b)*wi[2]
     w[1] = np.cos(a)*wi[1] + np.sin(a)*wi[2]
     w[2] = np.sin(b)*wi[0] - np.sin(a)*np.cos(b)*wi[1] + np.cos(a)*np.cos(b)*wi[2]    
     
     # Angle of attack
     v = np.array([v1, v2, v3])
-    delta = -np.arcsin((v3 - wi[2])/np.linalg.norm(np.array(v) - np.array(w)))
+    delta = -np.arcsin((v3 - w[2])/np.linalg.norm(v - w))
     
     '''
     The aerodynamical properties of the disc are defined by eight parameters.
@@ -71,8 +74,8 @@ def eom(t, f, w_0, wi, coeff):
     so that C_L = 0 when delta = delta_0.
 
     h_1, h_2, delta_1 and delta_2 determine the center of pressure as a function of delta.
-    The location of the center of pressure depends linearly on delta up to the angle delta_1.
-    For delta > delta_1 there is also a term quadratic in delta.
+    The location of the center of pressure depends linearly on delta up to the angle delta_2.
+    For delta > delta_2 there is also a term quadratic in delta.
     
     The minimization algorithm will try to choose the values of these parameters so that
     the trajectories resulting from them match the given input trajectories as closely
@@ -118,15 +121,20 @@ def eom(t, f, w_0, wi, coeff):
     R = h_1*(delta - delta_1) + theta(delta - delta_2)*h_2*(delta - delta_2)**2
 
     # Components of force in the frisbee's coordinate system
-    F1 = -0.5*rho*Ar*np.linalg.norm(np.array(v) - np.array(wi))*(v[0]-wi[0])*(CD + CL*(v[2]-wi[2])/np.sqrt((v[0]-wi[0])**2 + (v[1]-wi[1])**2)) + m*g*np.cos(a)*np.sin(b)
-    F2 = -0.5*rho*Ar*np.linalg.norm(np.array(v) - np.array(wi))*(v[1]-wi[1])*(CD + CL*(v[2]-wi[2])/np.sqrt((v[0]-wi[0])**2 + (v[1]-wi[1])**2)) - m*g*np.sin(a)
-    F3 = -0.5*rho*Ar*np.linalg.norm(np.array(v) - np.array(wi))*(CD*(v[2]-wi[2]) - CL*np.sqrt((v[0]-wi[0])**2 + (v[1]-wi[1])**2)) - m*g*np.cos(a)*np.cos(b)
+    F1 = -0.5*rho*Ar*np.linalg.norm(v - w)*(v[0] - w[0])*(CD + CL*(v[2] - w[2])
+            /np.sqrt((v[0] - w[0])**2 + (v[1] - w[1])**2)) + m*g*np.cos(a)*np.sin(b)
+    F2 = -0.5*rho*Ar*np.linalg.norm(v - w)*(v[1] - w[1])*(CD + CL*(v[2] - w[2])
+            /np.sqrt((v[0] - w[0])**2 + (v[1] - w[1])**2)) - m*g*np.sin(a)
+    F3 = -0.5*rho*Ar*np.linalg.norm(v - w)*(CD*(v[2] - w[2]) 
+            - CL*np.sqrt((v[0] - w[0])**2 + (v[1] - w[1])**2)) - m*g*np.cos(a)*np.cos(b)
 
     # Components of torque in the frisbee's coordinate system
     # Includes a damping term added by hand and controlled by the parameter q
     q = 0.0002
-    T1 = 0.5*rho*Ar*R*np.linalg.norm(np.array(v) - np.array(wi))*(v[1]-wi[1])*(CL - CD*(v[2]-wi[2])/np.sqrt((v[0]-wi[0])**2 + (v[1]-wi[1])**2)) - 0.5*rho*Ar*np.linalg.norm(np.array(v) - np.array(wi))**2*q*da
-    T2 = -0.5*rho*Ar*R*np.linalg.norm(np.array(v) - np.array(wi))*(v[0]-wi[0])*(CL - CD*(v[2]-wi[2])/np.sqrt((v[0]-wi[0])**2 + (v[1]-wi[1])**2)) - 0.5*rho*Ar*np.linalg.norm(np.array(v) - np.array(wi))**2*q*db
+    T1 = 0.5*rho*Ar*R*np.linalg.norm(v - w)*(v[1] - w[1])*(CL - CD*(v[2] - w[2])
+            /np.sqrt((v[0] - w[0])**2 + (v[1] - w[1])**2)) - 0.5*rho*Ar*np.linalg.norm(v - w)**2*q*da
+    T2 = -0.5*rho*Ar*R*np.linalg.norm(v - w)*(v[0] - w[0])*(CL - CD*(v[2] - w[2])
+            /np.sqrt((v[0] - w[0])**2 + (v[1] - w[1])**2)) - 0.5*rho*Ar*np.linalg.norm(v - w)**2*q*db
 
     # Equations of motion, in the form [x. y. z. v1. v2. v3. a. b. a.. b..]
     return [np.cos(b)*v1 + np.sin(b)*v3,
@@ -159,7 +167,8 @@ def frisbee_solve(init, coeff):
     da_0 = init[8]
     db_0 = init[9]
 
-    wind = np.array([0, 0, 0])    # Wind (in the coordinate system fixed to Earth)
+    # Wind (in the coordinate system fixed to Earth)
+    wind = np.array([init[10], init[11], init[12]])
 
     # Components of initial velocity in the Earth coordinate system
     v0_x = 0
@@ -215,6 +224,7 @@ def score(coeff, init, goal):
 # or only the center of pressure parameters (all_parameters = 0).
 # In the latter case, set the drag and lift parameters in 'eom'
 # (on line 89 at the time of writing this comment).
+
 all_parameters = 1
 
 # Initial conditions:
@@ -224,22 +234,24 @@ all_parameters = 1
 # omega_0           Initial angular velocity around the disc's symmetry axis
 # alpha_0, beta_0   Angles defining the orientation of the disc
 # da_0, db_0        Angular velocities of alpha and beta
+# w_x, w_y, w_z     Components of wind velocity
 
 # 'init' contains the initial conditions for each input trajectory, in the form
-# [x_0, y_0, z_0, v_0, phi_0, omega_0, alpha_0, beta_0, da_0, db_0]
+# [x_0, y_0, z_0, v_0, phi_0, omega_0, alpha_0, beta_0, da_0, db_0, w_x, w_y, w_z]
 
-init = [[0, 0, 1, 28, 10*np.pi/180, -34*np.pi, 6*np.pi/180, -10*np.pi/180, 0, 0],
-        [0, 0, 1, 28, 10*np.pi/180, -34*np.pi, 6*np.pi/180, -5*np.pi/180, 0, 0],
-        [0, 0, 1, 28, 10*np.pi/180, -34*np.pi, 6*np.pi/180, 0*np.pi/180, 0, 0],
-        [0, 0, 1, 28, 10*np.pi/180, -34*np.pi, 6*np.pi/180, 5*np.pi/180, 0, 0],
-        [0, 0, 1, 28, 10*np.pi/180, -34*np.pi, 6*np.pi/180, 10*np.pi/180, 0, 0],
-        [0, 0, 1, 28, 15*np.pi/180, -34*np.pi, 10*np.pi/180, -10*np.pi/180, 0, 0],
-        [0, 0, 1, 28, 15*np.pi/180, -34*np.pi, 10*np.pi/180, -5*np.pi/180, 0, 0],
-        [0, 0, 1, 28, 15*np.pi/180, -34*np.pi, 10*np.pi/180, 0*np.pi/180, 0, 0],
-        [0, 0, 1, 28, 15*np.pi/180, -34*np.pi, 10*np.pi/180, 5*np.pi/180, 0, 0],
-        [0, 0, 1, 28, 15*np.pi/180, -34*np.pi, 10*np.pi/180, 10*np.pi/180, 0, 0]]
+init = [[0, 0, 1, 28, 10*np.pi/180, -34*np.pi, 6*np.pi/180, -10*np.pi/180, 0, 0, 0, 0, 0],
+        [0, 0, 1, 28, 10*np.pi/180, -34*np.pi, 6*np.pi/180, -5*np.pi/180, 0, 0, 0, 0, 0],   
+        [0, 0, 1, 28, 10*np.pi/180, -34*np.pi, 6*np.pi/180, 0*np.pi/180, 0, 0, 0, 0, 0],
+        [0, 0, 1, 28, 10*np.pi/180, -34*np.pi, 6*np.pi/180, 5*np.pi/180, 0, 0, 0, 0, 0],
+        [0, 0, 1, 28, 10*np.pi/180, -34*np.pi, 6*np.pi/180, 10*np.pi/180, 0, 0, 0, 0, 0],
+        [0, 0, 1, 28, 15*np.pi/180, -34*np.pi, 10*np.pi/180, -10*np.pi/180, 0, 0, 0, 0, 0],
+        [0, 0, 1, 28, 15*np.pi/180, -34*np.pi, 10*np.pi/180, -5*np.pi/180, 0, 0, 0, 0, 0],
+        [0, 0, 1, 28, 15*np.pi/180, -34*np.pi, 10*np.pi/180, 0*np.pi/180, 0, 0, 0, 0, 0],
+        [0, 0, 1, 28, 15*np.pi/180, -34*np.pi, 10*np.pi/180, 5*np.pi/180, 0, 0, 0, 0, 0],
+        [0, 0, 1, 28, 15*np.pi/180, -34*np.pi, 10*np.pi/180, 10*np.pi/180, 0, 0, 0, 0, 0]]
 
 # 'goal' contains the 'features' of each input trajectory: [x_F, y_F, z_max, x_min, x_max, t_F].
+
 # For now we use input trajectories calculated by frisbee_solve (using the parameters coeff_g).
 # This ensures that the problem has a well-defined solution which 'minimize' can find, 
 # i.e. there exists a set of parameters which will reproduce all the input trajectories.
@@ -262,25 +274,30 @@ goal = [frisbee_solve(init[0], coeff_g),
 
 if all_parameters == 1:
 
-    # Initial guess
-    guess = [0.15, 4/50, 4*np.pi/180, 5*np.pi/180, 0.055, 0.143, -4*np.pi/180, 2/20]
+    '''
+    The parameters are determined by minimizing the value of 'score'.
+    
+    Sometimes 'minimize' tends to get stuck and doesn't know in which direction it should move.
+    Increasing the value of 'eps' from the default 1e-8 helps to avoid this problem.
+    
+    The option 'maxiter' can be used to tell 'minimize' to stop minimizing after a certain number of
+    iterations, if it hasn't otherwise stopped by then. I removed it because increasing 'eps' seems
+    to eliminate the behaviour where the solver can neither stop nor make any significant progress.
+    '''
 
-    # The parameters are determined by minimizing the value of 'score'.
-    # Sometimes 'minimize' tends to get stuck and doesn't know in which direction it should move.
-    # Increasing the value of 'eps' from the default 1e-8 helps to avoid this problem.
-    # We tell 'minimize' to stop minimizing after 100 iterations, if it hasn't otherwise 
-    # stopped by then.
+    # Initial guess
+    guess = [0.15, 4/50, 4*np.pi/180, 5*np.pi/180, 0.04, 0.13, -5*np.pi/180, 2/20]
 
     coeff = minimize(score, guess, (init, goal), method = 'L-BFGS-B', 
             bounds = ((0.01, 1), (0.01, 1), (0, 1), (0, 1),
                 (0.01, 1), (0.01, 1), (-1, -np.pi/180), (0, 1)),
-            options = {'eps': 1e-6, 'maxiter': 100, 'iprint': 1000})
+            options = {'eps': 1e-6, 'iprint': 1000})
 
     print('')
     
     # The best parameters found by 'minimize' 
-    print('CL_0    =', coeff.x[4])
-    print('CD_0    =', coeff.x[5])
+    print('CD_0    =', coeff.x[4])
+    print('CL_0    =', coeff.x[5])
     print('delta_0 =', 180/np.pi*coeff.x[6])
     print('kappa   =', 20*coeff.x[7])
     print('h_1     =', coeff.x[0])
